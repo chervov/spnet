@@ -41,10 +41,7 @@ SUBSCRIPTION_PRIORITY_CHOICES = (
 )
 
 class Subscription(models.Model):
-    '''adds mappings to User object:
-    User.subscriptions_in lists his subscriptions;
-    User.subscriptions_out lists his subscribers.
-
+    '''
     request_all: get all recs, from the recommender regardless of topic.
     '''
     subscriber = models.ForeignKey(User, related_name='subscriptions_in')
@@ -55,6 +52,19 @@ class Subscription(models.Model):
 
 # see http://www.djangobook.com/en/1.0/chapter12/#cn222
 class UserProfile(models.Model):
+    '''In addition to these fields, there are mappings constructed
+    on the User object:
+
+    comments: comments written by this user.
+    recommendations: recommendations made by this user.
+    author_set: the Author object listing papers written by this user,
+    if any.
+    subscriptions_in: lists his subscriptions (to receive recs);
+    subscriptions_out: lists his subscribers (to send recs).
+    merge_requests: lists his topic merge requests.
+    topicgroup_set: lists topics he created.
+    submissions: paper records he created.
+    '''
     user = models.ForeignKey(User, unique=True)
     datetime_joined = models.DateTimeField(default=datetime.now)
     datetime_last_seen = models.DateTimeField()
@@ -64,21 +74,41 @@ class UserProfile(models.Model):
     topic_groups = models.ManyToManyField(TopicGroup, related_name='members')
     
 class Author(models.Model):
+    '''Note that we cannot assume all paper authors will be registered
+    as users of this site, so we represent authors as a separate
+    table.'''
     name = models.CharField(max_length=1000)
     email =  models.CharField(max_length=1000) # is there a max length for emails?
     papers = models.ManyToManyField('Paper', related_name='authors')
-    user = models.ForeignKey(User, unique=True) # is this author a user?
+    user = models.ForeignKey(User, unique=True, null=True,
+                             blank=True) # is this author a user?
+
 
 class PaperDB(models.Model):
+    '''Represents different paper repositories, e.g. arXiv.
+    Each paperdb must provide a mechanism for accessing the paper.
+
+    url_template: should specify how to construct URL for the
+    paper using paper_id and url_data.'''
     name = models.CharField(max_length=1000)
     url_template = models.CharField(max_length=1000)
     description = models.CharField(max_length=1000)
     
     
 class Paper(models.Model):
+    '''mappings to other data given by the following attributes:
+    authors: list of authors.
+    topic_groups: list of topics assigned by submitter.
+    comments: top-level comment threads for this paper.
+    recommendations: recommendations of this paper.
+
+    url_data: additional data for URL construction
+
+    submitter: mainly informative for indicating who assigned topic_groups
+    '''
     paper_db = models.ForeignKey(PaperDB, related_name='papers')
     paper_id = models.CharField(max_length=50) # for generality, make it longer
-    url_data = models.CharField(max_length=1000) # additional data for URL construction
+    url_data = models.CharField(max_length=1000)
     title = models.CharField(max_length=1000)
     topic_groups = models.ManyToManyField(TopicGroup,
                                           related_name='papers')
